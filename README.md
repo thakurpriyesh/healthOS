@@ -2,6 +2,8 @@
 
 Full-stack personal health manager with account registration, login, and server-side health data persistence.
 
+🌐 **Live Demo:** https://civic-connect-lilac.vercel.app  
+
 ## Run Locally
 
 Create a `.env` file or export these variables before starting the API:

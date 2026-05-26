@@ -6,7 +6,7 @@ import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createToken, hashPassword, verifyPassword, verifyToken } from "./auth.js";
 import { defaultHealthData, sampleHealthData } from "./defaultHealthData.js";
-import { readDb, updateDb } from "./storage.js";
+import { connectDb, usersCollection } from "./db.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, "..");
@@ -29,6 +29,27 @@ const sampleUser = {
   email: "demo@healthos.test",
   password: "password123",
 };
+
+async function loadEnvFile() {
+  try {
+    const env = await readFile(join(rootDir, ".env"), "utf8");
+    for (const line of env.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const separator = trimmed.indexOf("=");
+      if (separator === -1) continue;
+
+      const key = trimmed.slice(0, separator).trim();
+      const value = trimmed.slice(separator + 1).trim().replace(/^["']|["']$/g, "");
+      if (key && process.env[key] === undefined) {
+        process.env[key] = value;
+      }
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+}
 
 function sendJson(res, status, body) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
@@ -57,20 +78,15 @@ async function getAuthedUser(req) {
   const payload = verifyToken(token);
   if (!payload) return null;
 
-  const db = await readDb();
-  return db.users.find((user) => user.id === payload.sub) || null;
+  return usersCollection().findOne({ id: payload.sub });
 }
 
 async function ensureSampleUser() {
-  await updateDb(async (db) => {
-    const existing = db.users.find((user) => user.email === sampleUser.email);
-    if (existing) {
-      existing.name = sampleUser.name;
-      existing.healthData = structuredClone(sampleHealthData);
-      return;
-    }
+  const users = usersCollection();
+  const existing = await users.findOne({ email: sampleUser.email });
 
-    db.users.push({
+  if (!existing) {
+    await users.insertOne({
       id: randomUUID(),
       name: sampleUser.name,
       email: sampleUser.email,
@@ -78,7 +94,15 @@ async function ensureSampleUser() {
       createdAt: new Date().toISOString(),
       healthData: structuredClone(sampleHealthData),
     });
-  });
+    return;
+  }
+
+  if (!existing.healthData || Object.keys(existing.healthData).length === 0) {
+    await users.updateOne(
+      { email: sampleUser.email },
+      { $set: { name: sampleUser.name, healthData: structuredClone(sampleHealthData) } }
+    );
+  }
 }
 
 async function handleApi(req, res) {
@@ -92,39 +116,36 @@ async function handleApi(req, res) {
         return sendJson(res, 400, { error: "Name, email, and an 8+ character password are required." });
       }
 
-      const result = await updateDb(async (db) => {
-        if (db.users.some((user) => user.email === cleanEmail)) {
-          return { error: "An account with this email already exists." };
-        }
+      const users = usersCollection();
+      const existing = await users.findOne({ email: cleanEmail });
+      if (existing) {
+        return sendJson(res, 409, { error: "An account with this email already exists." });
+      }
 
-        const user = {
-          id: randomUUID(),
-          name: cleanName,
-          email: cleanEmail,
-          passwordHash: await hashPassword(password),
-          createdAt: new Date().toISOString(),
-          healthData: {
-            ...structuredClone(defaultHealthData),
-            profile: { ...defaultHealthData.profile, name: cleanName },
-          },
-        };
-        db.users.push(user);
-        return { user };
-      });
+      const user = {
+        id: randomUUID(),
+        name: cleanName,
+        email: cleanEmail,
+        passwordHash: await hashPassword(password),
+        createdAt: new Date().toISOString(),
+        healthData: {
+          ...structuredClone(defaultHealthData),
+          profile: { ...defaultHealthData.profile, name: cleanName },
+        },
+      };
+      await users.insertOne(user);
 
-      if (result.error) return sendJson(res, 409, { error: result.error });
       return sendJson(res, 201, {
-        token: createToken(result.user.id),
-        user: publicUser(result.user),
-        healthData: result.user.healthData,
+        token: createToken(user.id),
+        user: publicUser(user),
+        healthData: user.healthData,
       });
     }
 
     if (req.method === "POST" && req.url === "/api/auth/login") {
       const { email, password } = await readJson(req);
       const cleanEmail = String(email || "").trim().toLowerCase();
-      const db = await readDb();
-      const user = db.users.find((item) => item.email === cleanEmail);
+      const user = await usersCollection().findOne({ email: cleanEmail });
 
       if (!user || !(await verifyPassword(String(password || ""), user.passwordHash))) {
         return sendJson(res, 401, { error: "Invalid email or password." });
@@ -152,11 +173,10 @@ async function handleApi(req, res) {
         return sendJson(res, 400, { error: "Missing health data." });
       }
 
-      await updateDb((db) => {
-        const record = db.users.find((item) => item.id === user.id);
-        record.name = healthData.profile?.name || record.name;
-        record.healthData = healthData;
-      });
+      await usersCollection().updateOne(
+        { id: user.id },
+        { $set: { name: healthData.profile?.name || user.name, healthData } }
+      );
 
       return sendJson(res, 200, { ok: true });
     }
@@ -184,15 +204,22 @@ async function serveStatic(req, res) {
   }
 }
 
-await ensureSampleUser();
+try {
+  await loadEnvFile();
+  await connectDb();
+  await ensureSampleUser();
 
-createServer((req, res) => {
-  if (req.url.startsWith("/api/")) {
-    handleApi(req, res);
-    return;
-  }
+  createServer((req, res) => {
+    if (req.url.startsWith("/api/")) {
+      handleApi(req, res);
+      return;
+    }
 
-  serveStatic(req, res);
-}).listen(port, () => {
-  console.log(`Health Manager server listening on http://localhost:${port}`);
-});
+    serveStatic(req, res);
+  }).listen(port, () => {
+    console.log(`Health Manager server listening on http://localhost:${port}`);
+  });
+} catch (error) {
+  console.error(`Server startup failed: ${error.message}`);
+  process.exit(1);
+}

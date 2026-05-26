@@ -2,7 +2,7 @@
 
 Full-stack personal health manager with account registration, login, and server-side health data persistence.
 
-🌐 **Live Demo:** https://civic-connect-lilac.vercel.app  
+🌐 **Live Demo:** https://healthos-fehc.onrender.com/ 
 
 ## Run Locally
 

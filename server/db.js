@@ -4,7 +4,7 @@ let db;
 
 export async function connectDb() {
   const uri = process.env.MONGODB_URI;
-  const dbName = process.env.MONGODB_DB || "health-manager";
+  const dbName = process.env.MONGODB_DB || "healthOS";
 
   if (!uri) {
     throw new Error("MONGODB_URI is required. Use a MongoDB Atlas connection string or another remote MongoDB URI.");

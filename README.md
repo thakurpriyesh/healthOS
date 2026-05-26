@@ -10,7 +10,7 @@ Create a `.env` file or export these variables before starting the API:
 
 ```bash
 MONGODB_URI="mongodb+srv://<user>:<password>@<cluster-url>/"
-MONGODB_DB="health-manager"
+MONGODB_DB="healthOS"
 AUTH_SECRET="use-a-long-random-secret"
 ```
 

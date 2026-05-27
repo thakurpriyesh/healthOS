@@ -334,12 +334,24 @@ const STYLE = `
   .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; width: 100%; }
   .progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
 
-  /* Tabs */
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  /* Tabs with Mobile Horizontal Overflow Handling */
+  .tabs { 
+    display: flex; 
+    gap: 4px; 
+    border-bottom: 1px solid var(--border); 
+    margin-bottom: 20px; 
+    overflow-x: auto; 
+    scrollbar-width: none; /* Hide scrollbar for clean UI in Firefox */
+    -webkit-overflow-scrolling: touch; /* Momentum scrolling on iOS */
+  }
+  .tabs::-webkit-scrollbar {
+    display: none; /* Hide scrollbar in Safari & Chrome */
+  }
   .tab {
     padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--text3);
     border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;
     margin-bottom: -1px; transition: all 0.15s;
+    white-space: nowrap; /* Prevent tabs from shrinking or wrapping onto a new line */
   }
   .tab:hover { color: var(--text); }
   .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -521,10 +533,10 @@ const getInitials = (name) => {
 };
 
 const INIT_PROFILE = {
-  name: "Rachana", age: 34, gender: "Female", height: 163,
-  bloodType: "B+", allergies: "Dust",
-  conditions: "Migraine", emergencyName: "Priyesh",
-  emergencyPhone: "+91 7061449907", emergencyRel: "Boyfriend",
+  name: "Rachana Dutta", age: 34, gender: "Female", height: 163,
+  bloodType: "B+", allergies: "Dust, pollen, shellfish",
+  conditions: "Migraine, mild iron deficiency, seasonal allergies", emergencyName: "Priyesh Kumar",
+  emergencyPhone: "+91 7061449907", emergencyRel: "Partner",
   doctor: "Dr. James Patel", clinic: "Metro Health Center"
 };
 
@@ -535,33 +547,32 @@ const INIT_VITALS = [
 ];
 
 const INIT_MEDS = [
-  { id: 1, name: "Metformin", dose: "500mg", freq: "Twice daily", time: "8:00 AM / 8:00 PM", taken: true, category: "Diabetes" },
-  { id: 2, name: "Lisinopril", dose: "10mg", freq: "Once daily", time: "8:00 AM", taken: false, category: "Hypertension" },
+  { id: 1, name: "Ferrous Sulfate", dose: "325mg", freq: "Once daily", time: "8:00 AM", taken: true, category: "Iron Deficiency" },
+  { id: 2, name: "Cetirizine", dose: "10mg", freq: "Once daily", time: "9:00 PM", taken: true, category: "Allergy" },
   { id: 3, name: "Vitamin D3", dose: "1000 IU", freq: "Once daily", time: "Morning", taken: true, category: "Supplement" },
-  { id: 4, name: "Omega-3", dose: "1000mg", freq: "Once daily", time: "With meal", taken: false, category: "Supplement" },
+  { id: 4, name: "Omega-3", dose: "1000mg", freq: "Once daily", time: "With lunch", taken: false, category: "Supplement" },
 ];
 
 const INIT_APPOINTMENTS = [
-  { id: 1, doctor: "Dr. Sarah Chen", specialty: "Cardiologist", date: "2026-05-18", time: "10:30 AM", type: "Follow-up", location: "City Heart Clinic", notes: "" },
-  { id: 2, doctor: "Dr. James Patel", specialty: "General Physician", date: "2026-05-25", time: "2:00 PM", type: "Routine Checkup", location: "Metro Health Center", notes: "Bring blood reports" },
-  { id: 3, doctor: "Dr. Lisa Torres", specialty: "Endocrinologist", date: "2026-06-10", time: "11:00 AM", type: "Consultation", location: "Hormone Health Clinic", notes: "" },
+  { id: 1, doctor: "Dr. James Patel", specialty: "General Physician", date: "2026-06-04", time: "10:30 AM", type: "Routine Checkup", location: "Metro Health Center", notes: "Review ferritin and vitamin D reports" },
+  { id: 2, doctor: "Dr. Sarah Chen", specialty: "Neurologist", date: "2026-06-12", time: "2:00 PM", type: "Follow-up", location: "City Neuro Clinic", notes: "Migraine frequency follow-up" },
+  { id: 3, doctor: "Dr. Lisa Torres", specialty: "Dietitian", date: "2026-06-18", time: "11:15 AM", type: "Consultation", location: "Wellness Nutrition Studio", notes: "Protein and iron-rich meal plan" },
 ];
 
 const INIT_MEALS = [
-  { id: 1, name: "Oatmeal + Banana", type: "Breakfast", kcal: 320, protein: 9, carbs: 58, fat: 6, time: "7:45 AM" },
-  { id: 2, name: "Grilled Chicken Salad", type: "Lunch", kcal: 480, protein: 38, carbs: 22, fat: 18, time: "12:30 PM" },
-  { id: 3, name: "Greek Yogurt", type: "Snack", kcal: 150, protein: 12, carbs: 16, fat: 3, time: "3:30 PM" },
+  { id: 1, name: "Oatmeal, banana, chia", type: "Breakfast", kcal: 390, protein: 13, carbs: 64, fat: 10, time: "07:45" },
+  { id: 2, name: "Spinach omelet", type: "Breakfast", kcal: 310, protein: 24, carbs: 8, fat: 20, time: "08:20" },
+  { id: 3, name: "Grilled chicken quinoa bowl", type: "Lunch", kcal: 540, protein: 42, carbs: 52, fat: 18, time: "12:35" },
 ];
 
 const INIT_EXERCISE = [
   { id: 1, type: "Running", duration: 35, kcal: 290, date: "Today", intensity: "Moderate" },
   { id: 2, type: "Yoga", duration: 45, kcal: 160, date: "Yesterday", intensity: "Low" },
-  { id: 3, type: "Cycling", duration: 60, kcal: 420, date: "2d ago", intensity: "High" },
 ];
 
 const INIT_SYMPTOMS = [
-  { date: "May 8", symptoms: ["Headache", "Fatigue"], severity: 4, notes: "After long work day" },
-  { date: "May 6", symptoms: ["Back Pain"], severity: 2, notes: "Morning stiffness" },
+  { date: "May 26", symptoms: ["Fatigue"], severity: 2, notes: "Improved after breakfast" },
+  { date: "May 25", symptoms: ["Headache", "Insomnia"], severity: 5, notes: "Screen-heavy workday" },
 ];
 
 const DEFAULT_HEALTH_DATA = {
@@ -1219,7 +1230,7 @@ function AppointmentsPage({ appointments, setAppointments }) {
 function NutritionPage({ meals, setMeals }) {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", type: "Breakfast", kcal: "", protein: "", carbs: "", fat: "", time: "" });
-  const [tab, setTab] = useState("Today");
+  const [tab, setTab] = useState("Breakfast"); // Fixed: Changed from "Today" to "Breakfast" to show food logs by default on page load!
 
   const save = () => {
     setMeals(prev => [...prev, { ...form, id: Date.now(), kcal: +form.kcal, protein: +form.protein, carbs: +form.carbs, fat: +form.fat }]);
@@ -1544,7 +1555,6 @@ function FormattedMessage({ text }) {
   const lines = text.split('\n');
   
   const formatInline = (str) => {
-    // Match both **bold** and *italic* markdown tags
     const parts = str.split(/(\*\*.*?\*\*|\*.*?\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {

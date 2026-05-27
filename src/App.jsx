@@ -1643,7 +1643,7 @@ function AIAssistant({ vitals, meds, meals, exercise, profile }) {
         contents: geminiHistory,
       };
 
-      const apiKey = "AIzaSyAolBjYjhqjWxUypZ18t2FMHSy6sRRgat4"; 
+      const apiKey = process.env.GEMINI_API_KEY;
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
       const res = await fetch(apiUrl, {

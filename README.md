@@ -12,6 +12,8 @@ Create a `.env` file or export these variables before starting the API:
 MONGODB_URI="mongodb+srv://<user>:<password>@<cluster-url>/"
 MONGODB_DB="healthOS"
 AUTH_SECRET="use-a-long-random-secret"
+GEMINI_API_KEY="<your-gemini-api-key>"
+# Optional: GEMINI_MODEL="gemini-1.5-flash"
 ```
 
 Start the API server:
@@ -45,5 +47,6 @@ The production server serves both the built React app and the API at `http://loc
 - Auth uses signed bearer tokens stored in the browser.
 - Health data is stored in the MongoDB `users` collection.
 - The server requires `MONGODB_URI` and will not fall back to local file storage.
+- The AI assistant calls Gemini from the Node server, using `GEMINI_API_KEY` from the server environment.
 
-For deployment, use MongoDB Atlas or another remotely hosted MongoDB instance and set a strong `AUTH_SECRET` so existing tokens remain secure and stable across restarts.
+For deployment, use MongoDB Atlas or another remotely hosted MongoDB instance. On Render, set `MONGODB_URI`, `MONGODB_DB`, `AUTH_SECRET`, and `GEMINI_API_KEY` as environment variables. Set a strong `AUTH_SECRET` so existing tokens remain secure and stable across restarts.

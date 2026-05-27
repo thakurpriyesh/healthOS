@@ -1591,7 +1591,7 @@ function FormattedMessage({ text }) {
 // ============================================================
 // AI HEALTH ASSISTANT
 // ============================================================
-function AIAssistant({ vitals, meds, meals, exercise, profile }) {
+function AIAssistant({ vitals, meds, meals, exercise, profile, token }) {
   const [messages, setMessages] = useState([
     {
       role: "ai",
@@ -1629,38 +1629,19 @@ function AIAssistant({ vitals, meds, meals, exercise, profile }) {
     setLoading(true);
 
     try {
-      const systemPrompt = `You are a knowledgeable, empathetic AI Health Assistant integrated into a personal health management system. You have access to the user's current health data. Be helpful, concise, and always remind users to consult their doctor for medical decisions. Never diagnose. Provide clear, brief answers with occasional bullet points for readability. Avoid complex markdown elements like tables. ${buildContext()}`;
-
-      // Map local message history to Gemini API format
-      const geminiHistory = messages.map(m => ({
-        role: m.role === "ai" ? "model" : "user",
-        parts: [{ text: m.content }]
-      }));
-      geminiHistory.push({ role: "user", parts: [{ text: userMsg.content }] });
-
-      const payload = {
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: geminiHistory,
-      };
-
-      const apiKey = process.env.GEMINI_API_KEY;
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const data = await apiRequest("/api/ai", {
+        method: "POST",
+        token,
+        body: JSON.stringify({
+          healthContext: buildContext(),
+          messages: [...messages, userMsg],
+        })
       });
 
-      const data = await res.json();
-      
-      // Parse Gemini response structure
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't process that. Please try again.";
-      
-      setMessages(prev => [...prev, { role: "ai", content: text, time: "Now" }]);
+      setMessages(prev => [...prev, { role: "ai", content: data.text, time: "Now" }]);
     } catch (e) {
       console.error(e);
-      setMessages(prev => [...prev, { role: "ai", content: "Sorry, I'm having trouble connecting right now. Please try again in a moment.", time: "Now" }]);
+      setMessages(prev => [...prev, { role: "ai", content: e.message || "Sorry, I'm having trouble connecting right now. Please try again in a moment.", time: "Now" }]);
     }
     setLoading(false);
   };
@@ -1972,7 +1953,7 @@ export default function App() {
   };
 
   const renderPage = () => {
-    const props = { vitals, setVitals, meds, setMeds, appointments, setAppointments, meals, setMeals, exercise, setExercise, symptoms, setSymptoms, profile: userProfile };
+    const props = { vitals, setVitals, meds, setMeds, appointments, setAppointments, meals, setMeals, exercise, setExercise, symptoms, setSymptoms, profile: userProfile, token };
     switch (page) {
       case "dashboard": return <Dashboard {...props} onNavigate={setPage} />;
       case "vitals": return <VitalsPage {...props} />;

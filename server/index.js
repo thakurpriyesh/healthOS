@@ -12,6 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, "..");
 const distDir = join(rootDir, "dist");
 const port = Number(process.env.PORT || 4173);
+const defaultGeminiModel = "gemini-1.5-flash";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -70,6 +71,48 @@ function publicUser(user) {
     email: user.email,
     createdAt: user.createdAt,
   };
+}
+
+function geminiModelPath() {
+  const model = process.env.GEMINI_MODEL || defaultGeminiModel;
+  return model.startsWith("models/") ? model : `models/${model}`;
+}
+
+async function generateHealthAssistantReply({ messages, healthContext }) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    const error = new Error("GEMINI_API_KEY is not configured.");
+    error.status = 503;
+    throw error;
+  }
+
+  const systemPrompt = `You are a knowledgeable, empathetic AI Health Assistant integrated into a personal health management system. You have access to the user's current health data. Be helpful, concise, and always remind users to consult their doctor for medical decisions. Never diagnose. Provide clear, brief answers with occasional bullet points for readability. Avoid complex markdown elements like tables. ${healthContext || ""}`;
+
+  const contents = messages.map((message) => ({
+    role: message.role === "ai" ? "model" : "user",
+    parts: [{ text: String(message.content || "") }],
+  }));
+
+  const url = new URL(`https://generativelanguage.googleapis.com/v1beta/${geminiModelPath()}:generateContent`);
+  url.searchParams.set("key", apiKey);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error?.message || "The AI service could not process that request.");
+    error.status = response.status;
+    throw error;
+  }
+
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't process that. Please try again.";
 }
 
 async function getAuthedUser(req) {
@@ -181,10 +224,44 @@ async function handleApi(req, res) {
       return sendJson(res, 200, { ok: true });
     }
 
+    if (req.method === "POST" && req.url === "/api/ai") {
+      const user = await getAuthedUser(req);
+      if (!user) return sendJson(res, 401, { error: "Please sign in again." });
+
+      const { messages, healthContext } = await readJson(req);
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return sendJson(res, 400, { error: "Missing chat messages." });
+      }
+
+      const safeMessages = messages
+        .filter((message) => message && ["ai", "user"].includes(message.role))
+        .slice(-12)
+        .map((message) => ({
+          role: message.role,
+          content: String(message.content || "").slice(0, 4000),
+        }))
+        .filter((message) => message.content.trim());
+
+      while (safeMessages[0]?.role === "ai") {
+        safeMessages.shift();
+      }
+
+      if (!safeMessages.length || safeMessages.at(-1).role !== "user") {
+        return sendJson(res, 400, { error: "The latest chat message must be from the user." });
+      }
+
+      const text = await generateHealthAssistantReply({
+        messages: safeMessages,
+        healthContext: String(healthContext || "").slice(0, 4000),
+      });
+
+      return sendJson(res, 200, { text });
+    }
+
     return sendJson(res, 404, { error: "Not found." });
   } catch (error) {
     console.error(error);
-    return sendJson(res, 500, { error: "Something went wrong on the server." });
+    return sendJson(res, error.status || 500, { error: error.status ? error.message : "Something went wrong on the server." });
   }
 }
 
